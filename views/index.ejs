@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Upload</title>
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div class="container mt-5">
+      <h2>File Upload</h2>
+      <form action="/upload" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+          <input
+            type="file"
+            name="csvFile"
+            accept=".csv,.xls,.xlsx"
+            required
+            class="form-control"
+          />
+        </div>
+        <!-- <button
+          type="submit"
+          name="action"
+          value="dafa"
+          class="btn btn-primary"
+        >
+          Dafa
+        </button>
+        <button
+          type="submit"
+          name="action"
+          value="coexchange"
+          class="btn btn-primary"
+        >
+          Coexchange
+        </button> -->
+        <div class="row justify-content-center mt-4">
+          <div class="col-5">
+            <button
+              type="submit"
+              name="action"
+              value="dafa"
+              class="btn btn-primary btn-block mb-2"
+            >
+              Dafa
+            </button>
+          </div>
+          <div class="col-5">
+            <button
+              type="submit"
+              name="action"
+              value="coexchange"
+              class="btn btn-primary btn-block"
+            >
+              Coexchange
+            </button>
+          </div>
+        </div>
+      </form>
+      <div id="response" class="mt-3">
+        <% if (message) { %>
+        <p><%= message %></p>
+        <% } %>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  </body>
+</html>
