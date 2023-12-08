@@ -10,7 +10,7 @@ require("dotenv").config();
 
 const app = express();
 
-let authToken = null; // Global variable to store the authentication token
+// let authToken = null; // Global variable to store the authentication token
 
 // Set storage for uploaded files
 const storage = multer.diskStorage({
@@ -177,66 +177,71 @@ app.post("/upload", upload.single("csvFile"), (req, res) => {
   }
 });
 
-const login = async (action) => {
-  try {
-    // Check if the token is already set
-    if (authToken) {
-      return authToken;
-    }
-    if (action === "dafa") {
-      username = process.env.D_USERNAME;
-      password = process.env.D_PASSWORD;
-      systemId = process.env.D_SYS_ID;
-    } else if (action === "coexchange") {
-      username = process.env.C_USERNAME;
-      password = process.env.C_PASSWORD;
-      systemId = process.env.C_SYS_ID;
-    }
-    let data = JSON.stringify({
-      username: username,
-      password: password,
-      systemId: systemId,
-    });
-    let config = {
-      method: "post",
-      maxBodyLength: Infinity,
-      headers: {
-        "content-type": "application/json",
-      },
-      data: data,
-    };
-    const response = await axios.post(
-      "https://adminapi.bestlive.io/api/login",
-      data,
-      config
-    );
-    if (response.status !== 200) {
-      response_value = {
-        success: false,
-        message: response.status,
-      };
-    } else {
-      response_value = {
-        success: true,
-        data: response.data,
-      };
-      authToken = response.data.data.token;
-      return authToken;
-    }
-  } catch (err) {
-    response_value = {
-      success: false,
-      message: err.message,
-    };
-  }
-  console.log(response_value);
-  return response_value;
-};
+// const login = async (action) => {
+//   try {
+//     // Check if the token is already set
+//     if (authToken) {
+//       return authToken;
+//     }
+//     if (action === "dafa") {
+//       username = process.env.D_USERNAME;
+//       password = process.env.D_PASSWORD;
+//       systemId = process.env.D_SYS_ID;
+//     } else if (action === "coexchange") {
+//       username = process.env.C_USERNAME;
+//       password = process.env.C_PASSWORD;
+//       systemId = process.env.C_SYS_ID;
+//     }
+//     let data = JSON.stringify({
+//       username: username,
+//       password: password,
+//       systemId: systemId,
+//     });
+//     let config = {
+//       method: "post",
+//       maxBodyLength: Infinity,
+//       headers: {
+//         "content-type": "application/json",
+//       },
+//       data: data,
+//     };
+//     const response = await axios.post(
+//       "https://adminapi.bestlive.io/api/login",
+//       data,
+//       config
+//     );
+//     if (response.status !== 200) {
+//       response_value = {
+//         success: false,
+//         message: response.status,
+//       };
+//     } else {
+//       response_value = {
+//         success: true,
+//         data: response.data,
+//       };
+//       authToken = response.data.data.token;
+//       return authToken;
+//     }
+//   } catch (err) {
+//     response_value = {
+//       success: false,
+//       message: err.message,
+//     };
+//   }
+//   console.log(response_value);
+//   return response_value;
+// };
 
 // get requests from Wuwexchange
 const getRequests = async (extractedData, action) => {
   try {
-    let token = await login(action);
+    if (action === "dafa") {
+      token = process.env.D_TOKEN;
+    } else if (action === "coexchange") {
+      token = process.env.C_TOKEN;
+    }
+
     let data = JSON.stringify({
       type: "",
       nType: "deposit",
