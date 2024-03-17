@@ -26,10 +26,12 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Set EJS as the template engine
+app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
 // Serve static files
-app.use(express.static('public'));
+// app.use(express.static('public'));
+app.use(express.static(__dirname + 'public'));
 
 // Render the index page
 app.get('/', (req, res) => {
