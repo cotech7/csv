@@ -13,9 +13,22 @@ const app = express();
 // let authToken = null; // Global variable to store the authentication token
 
 // Set storage for uploaded files
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, 'uploads/');
+//   },
+//   filename: (req, file, cb) => {
+//     cb(null, `indus.csv`);
+//   },
+// });
+
+// Set the directory for uploads
+const uploadsDirectory = path.join(__dirname, 'uploads');
+
+// Set storage for uploaded files
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadsDirectory);
   },
   filename: (req, file, cb) => {
     cb(null, `indus.csv`);
@@ -104,8 +117,10 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
       header: 1,
     });
 
-    const headers = jsonData[5]; // Assuming headers are on line 21 (0-based index)
-    const data = jsonData.slice(6); // Assuming data starts from line 23 (0-based index)
+    // const headers = jsonData[3]; // Assuming headers are on line 6 (0-based index)
+    const headers = jsonData[5]; // Assuming headers are on line 6 (0-based index)
+    // const data = jsonData.slice(4); // Assuming data starts from line 7 (0-based index)
+    const data = jsonData.slice(6); // Assuming data starts from line 7 (0-based index)
     // console.log(headers);
     // const extractedData = data
     //   .map((row) => {
@@ -153,8 +168,10 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
             const utrNumber = row[index].match(/\d{12}/);
             obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
           } else if (header === 'Amount (INR)') {
+            // } else if (header === 'Amount') {
             // Convert 'Amount (INR)' to a number
             const creditAmount = parseFloat(row[index].replace(/,/g, ''));
+            // const creditAmount = parseFloat(row[index]);
             obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
           } else if (header === 'Value date') {
             // Assuming 'Value date' is in 'dd/mm/yyyy' format, you can add validation if needed
@@ -185,42 +202,53 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
     getRequests(extractedData, req.body.action);
     res.render('index', { message: `Data uploaded to ${req.body.action}.` });
   } else if (req.file.originalname.endsWith('.xlsx')) {
-    const workbook = xlsx.readFile(filePath);
+    const workbook = xls.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = xlsx.utils.sheet_to_json(worksheet, {
+    const jsonData = xls.utils.sheet_to_json(worksheet, {
       header: 1,
     });
 
-    const headers = jsonData[16]; // Assuming headers are on line 17 (0-based index)
-    const data = jsonData.slice(17); // Assuming data starts from line 18 (0-based index)
-
-    const transactionRemarksIndex = headers.indexOf('Transaction Remarks');
-    const depositAmtIndex = headers.indexOf('Deposit Amt (INR)');
+    const headers = jsonData[3]; // Assuming headers are on line 6 (0-based index)
+    const data = jsonData.slice(4); // Assuming data starts from line 7 (0-based index)
 
     const extractedData = data
       .map((row) => {
         const obj = {};
-        if (transactionRemarksIndex !== -1) {
-          const transactionRemarks = row[transactionRemarksIndex];
-          obj['UTR_Number'] =
-            (transactionRemarks &&
-              transactionRemarks.trim().match(/(?<=\/)\d+(?=\/)/)?.[0]) ||
-            null;
-        }
-        if (depositAmtIndex !== -1) {
-          const depositAmt = row[depositAmtIndex];
-          if (depositAmt !== undefined && depositAmt !== '') {
-            obj['Credit_Amount'] = parseFloat(depositAmt.replace(/,/g, ''));
+        headers.forEach((header, index) => {
+          if (header === 'Description') {
+            // Extract only the 12-digit number from the 'Description' field
+            const utrNumber = row[index].match(/\d{12}/);
+            obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
+          } else if (header === 'Amount') {
+            // Convert 'Amount (INR)' to a number
+            // const creditAmount = parseFloat(row[index].replace(/,/g, ''));
+            const creditAmount = parseFloat(row[index]);
+            obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
+          } else if (header === 'Value date') {
+            // Assuming 'Value date' is in 'dd/mm/yyyy' format, you can add validation if needed
+            obj['Date'] = row[index];
+          } else {
+            obj[header] = row[index];
           }
-        }
+        });
         return obj;
       })
-      .filter((entry) => {
-        return (
-          entry['UTR_Number'] !== undefined && !isNaN(entry['Credit_Amount'])
-        );
-      });
+      // .filter((entry) => {
+      //   // Check if the 'Date' field matches the desired format 'dd/mm/yyyy'
+      //   const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/; // Assuming date format is dd/mm/yyyy
+      //   const isValidDate = dateRegex.test(entry['Date']);
+
+      //   // Check if the 'Credit_Amount' field is a valid number
+      //   const depositAmt = entry['Credit_Amount'];
+      //   const isValidDepositAmt = !isNaN(depositAmt) && depositAmt > 0;
+
+      //   return isValidDate && isValidDepositAmt;
+      // })
+      .map(({ UTR_Number, Credit_Amount }) => ({
+        UTR_Number,
+        Credit_Amount,
+      }));
 
     // console.log(extractedData);
     getRequests(extractedData, req.body.action);
