@@ -205,7 +205,8 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
         headers.forEach((header, index) => {
           if (header === 'Description') {
             // Extract only the 12-digit number from the 'Description' field
-            const utrNumber = row[index].match(/\d{12}/);
+            // const utrNumber = row[index].match(/\d{12}/);
+            const utrNumber = row[index] ? row[index].match(/\d{12}/) : null;
             obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
           } else if (header === 'Amount') {
             // Convert 'Amount (INR)' to a number
@@ -221,6 +222,10 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
         });
         return obj;
       })
+      .filter(
+        ({ UTR_Number, Credit_Amount }) =>
+          UTR_Number !== null || Credit_Amount !== null
+      ) // Filter out objects with undefined UTR_Number or Credit_Amount
       // .filter((entry) => {
       //   // Check if the 'Date' field matches the desired format 'dd/mm/yyyy'
       //   const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/; // Assuming date format is dd/mm/yyyy
