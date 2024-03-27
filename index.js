@@ -196,8 +196,10 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
       header: 1,
     });
 
-    const headers = jsonData[12]; // Assuming headers are on line 6 (0-based index)
-    const data = jsonData.slice(13); // Assuming data starts from line 7 (0-based index)
+    const headers = jsonData[3]; // Assuming headers are on line 6 (0-based index)
+    // const headers = jsonData[12]; // Assuming headers are on line 6 (0-based index)
+    const data = jsonData.slice(4); // Assuming data starts from line 7 (0-based index)
+    // const data = jsonData.slice(13); // Assuming data starts from line 7 (0-based index)
 
     const extractedData = data
       .map((row) => {
