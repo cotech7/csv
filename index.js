@@ -13,22 +13,9 @@ const app = express();
 // let authToken = null; // Global variable to store the authentication token
 
 // Set storage for uploaded files
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, 'uploads/');
-//   },
-//   filename: (req, file, cb) => {
-//     cb(null, `indus.csv`);
-//   },
-// });
-
-// Set the directory for uploads
-const uploadsDirectory = path.join(__dirname, 'uploads');
-
-// Set storage for uploaded files
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadsDirectory);
+    cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
     cb(null, `indus.csv`);
@@ -209,8 +196,8 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
       header: 1,
     });
 
-    const headers = jsonData[3]; // Assuming headers are on line 6 (0-based index)
-    const data = jsonData.slice(4); // Assuming data starts from line 7 (0-based index)
+    const headers = jsonData[12]; // Assuming headers are on line 6 (0-based index)
+    const data = jsonData.slice(13); // Assuming data starts from line 7 (0-based index)
 
     const extractedData = data
       .map((row) => {
@@ -255,62 +242,6 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
     res.render('index', { message: `Data uploaded to ${req.body.action}.` });
   }
 });
-
-// const login = async (action) => {
-//   try {
-//     // Check if the token is already set
-//     if (authToken) {
-//       return authToken;
-//     }
-//     if (action === "dafa") {
-//       username = process.env.D_USERNAME;
-//       password = process.env.D_PASSWORD;
-//       systemId = process.env.D_SYS_ID;
-//     } else if (action === "coexchange") {
-//       username = process.env.C_USERNAME;
-//       password = process.env.C_PASSWORD;
-//       systemId = process.env.C_SYS_ID;
-//     }
-//     let data = JSON.stringify({
-//       username: username,
-//       password: password,
-//       systemId: systemId,
-//     });
-//     let config = {
-//       method: "post",
-//       maxBodyLength: Infinity,
-//       headers: {
-//         "content-type": "application/json",
-//       },
-//       data: data,
-//     };
-//     const response = await axios.post(
-//       "https://adminapi.bestlive.io/api/login",
-//       data,
-//       config
-//     );
-//     if (response.status !== 200) {
-//       response_value = {
-//         success: false,
-//         message: response.status,
-//       };
-//     } else {
-//       response_value = {
-//         success: true,
-//         data: response.data,
-//       };
-//       authToken = response.data.data.token;
-//       return authToken;
-//     }
-//   } catch (err) {
-//     response_value = {
-//       success: false,
-//       message: err.message,
-//     };
-//   }
-//   console.log(response_value);
-//   return response_value;
-// };
 
 // get requests from Wuwexchange
 const getRequests = async (extractedData, action) => {
