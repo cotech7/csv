@@ -253,9 +253,9 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
 // get requests from Wuwexchange
 const getRequests = async (extractedData, action) => {
   try {
-    if (action === 'dafa') {
+    if (action === 'dddd') {
       token = process.env.D_TOKEN;
-    } else if (action === 'coexchange') {
+    } else if (action === 'cccc') {
       token = process.env.C_TOKEN;
     }
 
