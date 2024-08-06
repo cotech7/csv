@@ -49,49 +49,49 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
 
   // Read and parse the CSV file
   const filePath = path.join(__dirname, `uploads/indus.csv`);
+  const data = fs.readFileSync(filePath, 'utf8');
+
+  let lines = data.split('\n');
+  let headersRow = findHeadersRow(lines);
+  if (headersRow === null) {
+    throw new Error('Headers not found in CSV file.');
+  }
   if (req.file.originalname.endsWith('.csv')) {
-    // fs.createReadStream(filePath)
-    //   .pipe(csv({ skipLines: 17 })) // Skip the first 17 lines (headers)
-    //   .on('data', (data) => {
-    //     // Remove leading and trailing whitespace from specific fields
-    //     const trimmedData = {
-    //       'Sr.No.': data['Sr.No.'],
-    //       Date: data['Date'],
-    //       Type: data['Type'],
-    //       Description: data[' Description'].trim(),
-    //       Debit: data[' Debit '].trim(),
-    //       Credit: data['Credit '].trim(),
-    //       Balance: data['Balance'],
-    //     };
-    //     results.push(trimmedData);
-    //   })
     fs.createReadStream(filePath)
       .pipe(csv())
-      .on('data', (data) => {
+      .on('data', (row) => {
         // Extract Amount and UTR columns
-        const extractedData = {
-          UTR_Number: data['UTR'],
-          Credit_Amount: parseFloat(data['Amount']), // Convert to number format,
-        };
-        results.push(extractedData);
+        const creditAmount =
+          row['Credit'] ||
+          row['Credit '] ||
+          row['Amount'] ||
+          row['Amount (INR)'];
+        let utrNumber =
+          row['Cheque No.'] ||
+          row[' Description'] ||
+          row['Description'] ||
+          row['UTR'] ||
+          row['Utr'];
+
+        utrNumber = extractUTRNumber(utrNumber);
+
+        let extractedCreditAmount =
+          creditAmount && creditAmount.includes(',')
+            ? parseFloat(creditAmount.replace(/,/g, ''))
+            : parseFloat(creditAmount);
+        extractedCreditAmount = !isNaN(extractedCreditAmount)
+          ? extractedCreditAmount
+          : null;
+
+        if (utrNumber !== null && extractedCreditAmount !== null) {
+          results.push({
+            UTR_Number: utrNumber,
+            Credit_Amount: extractedCreditAmount,
+          });
+        }
       })
       .on('end', () => {
-        const response = JSON.stringify(results);
-        const extractedData = JSON.parse(response);
-        // .filter((entry) => entry.Type === 'Transfer Credit')
-        // .map((entry) => ({
-        //   UTR_Number:
-        //     entry.Description?.match(/(?<=\/)\d+(?=\/)/)?.[0] || null,
-        //   Credit_Amount: parseFloat(entry.Credit),
-        // }))
-        // .filter(
-        //   (entry, index, self) =>
-        //     entry.UTR_Number &&
-        //     index === self.findIndex((e) => e.UTR_Number === entry.UTR_Number)
-        // );
-
-        // console.log(extractedData);
-        getRequests(extractedData, req.body.action);
+        getRequests(results, req.body.action);
         res.render('index', {
           message: `Data uploaded to ${req.body.action}.`,
         });
@@ -249,6 +249,39 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
     res.render('index', { message: `Data uploaded to ${req.body.action}.` });
   }
 });
+
+function extractUTRNumber(description) {
+  // Regular expression to match exactly 12 digits, optionally preceded by any character
+  const utrRegex = /\b[A-Za-z]?(\d{12})\b/;
+
+  // Use the regex to find the UTR number
+  const match = description ? description.match(utrRegex) : null;
+
+  // Return the matched 12-digit UTR number, or null if no match found
+  return match ? match[1] : null;
+}
+
+function findHeadersRow(data) {
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    if (
+      (row.includes('Cheque No.') && row.includes('Credit')) ||
+      (row.includes('UTR') && row.includes('Amount')) ||
+      (row.includes('Utr') && row.includes('Amount')) ||
+      (row.includes(' Description') && row.includes('Credit ')) ||
+      (row.includes('Narration') && row.includes('Deposit Amt.')) ||
+      (row.includes('Description') && row.includes('Amount (INR)')) ||
+      (row.includes('Description') && row.includes('Cr Amount')) ||
+      (row.includes('Remarks') && row.includes('Deposits')) ||
+      (row.includes('Transaction Details') && row.includes('Deposit Amt')) ||
+      (row.includes('Description/Narration') && row.includes('Credit(Cr.)')) ||
+      (row.includes('RRN Number') && row.includes('Transaction Amt'))
+    ) {
+      return i;
+    }
+  }
+  return null;
+}
 
 // get requests from Wuwexchange
 const getRequests = async (extractedData, action) => {
