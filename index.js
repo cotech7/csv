@@ -53,9 +53,10 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
 
   let lines = data.split('\n');
   let headersRow = findHeadersRow(lines);
-  if (headersRow === null) {
-    throw new Error('Headers not found in CSV file.');
-  }
+
+  // if (headersRow === null) {
+  //   throw new Error('Headers not found in CSV file.');
+  // }
   if (req.file.originalname.endsWith('.csv')) {
     fs.createReadStream(filePath)
       .pipe(csv())
@@ -244,7 +245,6 @@ app.post('/upload', upload.single('csvFile'), (req, res) => {
         Credit_Amount,
       }));
 
-    // console.log(extractedData);
     getRequests(extractedData, req.body.action);
     res.render('index', { message: `Data uploaded to ${req.body.action}.` });
   }
@@ -275,7 +275,8 @@ function findHeadersRow(data) {
       (row.includes('Remarks') && row.includes('Deposits')) ||
       (row.includes('Transaction Details') && row.includes('Deposit Amt')) ||
       (row.includes('Description/Narration') && row.includes('Credit(Cr.)')) ||
-      (row.includes('RRN Number') && row.includes('Transaction Amt'))
+      (row.includes('RRN Number') && row.includes('Transaction Amt')) ||
+      (row.includes('Description') && row.includes('Amount'))
     ) {
       return i;
     }
