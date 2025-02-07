@@ -291,6 +291,8 @@ const getRequests = async (extractedData, action) => {
       token = process.env.D_TOKEN;
     } else if (action === 'cccc') {
       token = process.env.C_TOKEN;
+    } else if (action === 'aim') {
+      token = process.env.A_TOKEN;
     }
 
     let data = JSON.stringify({
@@ -343,7 +345,7 @@ const getRequests = async (extractedData, action) => {
           // console.log(id, user_id, utr_number, amount);
           console.log(`UTR Number: ${utr_number} Amount: ${amount}`);
           // accept requests
-          acceptRequests(id, user_id, utr_number, amount, token);
+          acceptRequests(id, user_id, utr_number, amount, token, action);
         });
       }
     } else {
@@ -355,14 +357,27 @@ const getRequests = async (extractedData, action) => {
   }
 };
 // accept requests
-const acceptRequests = async (id, user_id, utr_number, amount, token) => {
+const acceptRequests = async (
+  id,
+  user_id,
+  utr_number,
+  amount,
+  token,
+  action
+) => {
   try {
+    let rem = '';
+    if (action === 'aim') {
+      rem = 'add1';
+    } else {
+      rem = 'sat';
+    }
     // let token = await login();
     let data = JSON.stringify({
       uid: user_id,
       balance: amount,
       withdraw_req_id: id,
-      remark: 'sat',
+      remark: rem,
     });
     let config = {
       method: 'post',
@@ -377,8 +392,6 @@ const acceptRequests = async (id, user_id, utr_number, amount, token) => {
         encryption: 'false',
         origin: 'https://admin.dafaexch9.com',
         referer: 'https://admin.dafaexch9.com/',
-        // origin: "https://admin.coexchange.com",
-        // referer: "https://admin.coexchange.com/",
         'sec-ch-ua':
           '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
         'sec-ch-ua-mobile': '?0',
