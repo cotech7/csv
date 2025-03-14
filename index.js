@@ -270,7 +270,7 @@ const acceptRequests = async (
   action
 ) => {
   try {
-    const rem = action === 'aim' ? 'add1' : 'sat';
+    const rem = action === 'aim' ? 'add1' : 'fat';
     const data = JSON.stringify({
       uid: user_id,
       balance: amount,
