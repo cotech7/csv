@@ -108,26 +108,59 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = xls.utils.sheet_to_json(worksheet, { header: 1 });
 
-      const headers = jsonData[5]; // Assuming headers on line 6
-      const data = jsonData.slice(6); // Assuming data starts from line 7
+      const headersRow = findHeadersRow(jsonData);
+      if (headersRow === null) {
+        throw new Error('Headers not found in XLS file.');
+      }
+
+      const headers = jsonData[headersRow];
+      const data = jsonData.slice(headersRow + 1);
 
       data.forEach((row) => {
         const obj = {};
         headers.forEach((header, index) => {
+          const cellValue =
+            row[index] !== undefined ? row[index].toString() : ''; // Ensure it's a string
+
           if (header === 'Description') {
-            const utrNumber = row[index] ? row[index].match(/\d{12}/) : null;
+            const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/);
             obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
-          } else if (header === 'Amount (INR)') {
+          } else if (header === 'Amount (INR)' || header === 'Txn Amount') {
             const creditAmount = parseFloat(
-              row[index] ? row[index].toString().replace(/,/g, '') : NaN
-            );
+              cellValue.replace(/[₹,Cr]/g, '').trim()
+            ); // Remove ₹, commas, and 'Cr'
             obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
           }
         });
-        if (obj['UTR_Number'] && obj['Credit_Amount']) {
+
+        if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
           results.push(obj);
         }
       });
+
+      // const headers = jsonData[5]; // Assuming headers on line 6
+      // const data = jsonData.slice(6); // Assuming data starts from line 7
+
+      // data.forEach((row) => {
+      //   const obj = {};
+      //   headers.forEach((header, index) => {
+      //     if (header === 'Description') {
+      //       const utrNumber = row[index]
+      //         ? row[index].match(/\b[A-Za-z]?(\d{12})\b/)
+      //         : null;
+      //       // const utrNumber = row[index] ? row[index].match(/\d{12}/) : null;
+      //       obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
+      //     } else if (header === 'Amount (INR)' || header === 'Txn Amount') {
+      //       const creditAmount = parseFloat(
+      //         row[index] ? row[index].toString().replace(/,/g, '') : NaN
+      //       );
+      //       obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
+      //     }
+      //   });
+      //   if (obj['UTR_Number'] && obj['Credit_Amount']) {
+      //     results.push(obj);
+      //   }
+      // });
     } else if (req.file.originalname.endsWith('.xlsx')) {
       const workbook = xlsx.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
@@ -181,6 +214,19 @@ function extractUTRNumber(description) {
   const utrRegex = /\b[A-Za-z]?(\d{12})\b/;
   const match = description ? description.match(utrRegex) : null;
   return match ? match[1] : null;
+}
+
+function findHeadersRow(data) {
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    if (
+      (row.includes('Description') && row.includes('Amount (INR)')) ||
+      (row.includes('Description') && row.includes('Txn Amount'))
+    ) {
+      return i;
+    }
+  }
+  return null;
 }
 
 const getRequests = async (extractedData, action) => {
