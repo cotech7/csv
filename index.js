@@ -167,27 +167,63 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
 
-      const headers = jsonData[3]; // Assuming headers on line 4
-      const data = jsonData.slice(4); // Assuming data starts from line 5
+      const headersRow = findHeadersRow(jsonData);
+      if (headersRow === null) {
+        throw new Error('Headers not found in XLSX file.');
+      }
+
+      const headers = jsonData[headersRow];
+      const data = jsonData.slice(headersRow + 1);
 
       data.forEach((row) => {
         const obj = {};
         headers.forEach((header, index) => {
+          const cellValue =
+            row[index] !== undefined ? row[index].toString() : ''; // Ensure it's a string
+
           if (header === 'Description') {
-            const utrNumber = row[index] ? row[index].match(/\d{12}/) : null;
+            const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/);
             obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
-          } else if (header === 'Amount') {
+          } else if (
+            header === 'Amount' ||
+            header ===
+              'Value Date                        RefNo                         Txn Amount (DD/MM/YYYY)'
+          ) {
             const creditAmount = parseFloat(
-              row[index] ? row[index].toString().replace(/,/g, '') : NaN
-            );
+              cellValue.replace(/[₹,Cr]/g, '').trim()
+            ); // Remove ₹, commas, and 'Cr'
             obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
           }
         });
-        if (obj['UTR_Number'] && obj['Credit_Amount']) {
+
+        if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
           results.push(obj);
         }
       });
+
+      // const headers = jsonData[3]; // Assuming headers on line 4
+      // const data = jsonData.slice(4); // Assuming data starts from line 5
+
+      // data.forEach((row) => {
+      //   const obj = {};
+      //   headers.forEach((header, index) => {
+      //     if (header === 'Description') {
+      //       const utrNumber = row[index] ? row[index].match(/\d{12}/) : null;
+      //       obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
+      //     } else if (header === 'Amount') {
+      //       const creditAmount = parseFloat(
+      //         row[index] ? row[index].toString().replace(/,/g, '') : NaN
+      //       );
+      //       obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
+      //     }
+      //   });
+      //   if (obj['UTR_Number'] && obj['Credit_Amount']) {
+      //     results.push(obj);
+      //   }
+      // });
     }
+
+    console.log(results);
 
     await getRequests(results, req.body.action);
     res.render('index', {
@@ -221,7 +257,12 @@ function findHeadersRow(data) {
     const row = data[i];
     if (
       (row.includes('Description') && row.includes('Amount (INR)')) ||
-      (row.includes('Description') && row.includes('Txn Amount'))
+      (row.includes('Description') && row.includes('Txn Amount')) ||
+      (row.includes('Description') && row.includes('Amount')) ||
+      (row.includes('Description') &&
+        row.includes(
+          'Value Date                        RefNo                         Txn Amount (DD/MM/YYYY)'
+        ))
     ) {
       return i;
     }
