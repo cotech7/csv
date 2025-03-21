@@ -223,7 +223,6 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       // });
     }
 
-    console.log(results);
 
     await getRequests(results, req.body.action);
     res.render('index', {
