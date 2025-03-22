@@ -186,6 +186,7 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
             obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
           } else if (
             header === 'Amount' ||
+            header === 'RefNo                         Txn Amount' ||
             header ===
               'Value Date                        RefNo                         Txn Amount (DD/MM/YYYY)'
           ) {
@@ -223,6 +224,7 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       // });
     }
 
+    // console.log(results);
 
     await getRequests(results, req.body.action);
     res.render('index', {
@@ -258,6 +260,8 @@ function findHeadersRow(data) {
       (row.includes('Description') && row.includes('Amount (INR)')) ||
       (row.includes('Description') && row.includes('Txn Amount')) ||
       (row.includes('Description') && row.includes('Amount')) ||
+      (row.includes('Description') &&
+        row.includes('RefNo                         Txn Amount')) ||
       (row.includes('Description') &&
         row.includes(
           'Value Date                        RefNo                         Txn Amount (DD/MM/YYYY)'
