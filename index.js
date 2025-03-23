@@ -162,66 +162,121 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       //   }
       // });
     } else if (req.file.originalname.endsWith('.xlsx')) {
+      // const workbook = xlsx.readFile(filePath);
+      // const sheetName = workbook.SheetNames[0];
+      // const worksheet = workbook.Sheets[sheetName];
+      // const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+      // const headersRow = findHeadersRow(jsonData);
+      // if (headersRow === null) {
+      //   throw new Error('Headers not found in XLSX file.');
+      // }
+      // const headers = jsonData[headersRow];
+      // const data = jsonData.slice(headersRow + 1);
+      // data.forEach((row) => {
+      //   const obj = {};
+      //   headers.forEach((header, index) => {
+      //     const cellValue =
+      //       row[index] !== undefined ? row[index].toString() : ''; // Ensure it's a string
+      //     if (header === 'Description') {
+      //       const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/);
+      //       obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
+      //     } else if (
+      //       header === 'Amount' ||
+      //       header === 'RefNo                         Txn Amount' ||
+      //       header ===
+      //         'Value Date                        RefNo                         Txn Amount (DD/MM/YYYY)'
+      //     ) {
+      //       const creditAmount = parseFloat(
+      //         cellValue.replace(/[₹,Cr]/g, '').trim()
+      //       ); // Remove ₹, commas, and 'Cr'
+      //       obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
+      //     }
+      //   });
+      //   if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
+      //     results.push(obj);
+      //   }
+      // });
+
       const workbook = xlsx.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
 
-      const headersRow = findHeadersRow(jsonData);
-      if (headersRow === null) {
-        throw new Error('Headers not found in XLSX file.');
-      }
+      // const results = [];
 
-      const headers = jsonData[headersRow];
-      const data = jsonData.slice(headersRow + 1);
+      // Function to process a sheet
+      const processSheet = (jsonData, headersRow = null) => {
+        if (headersRow === null) {
+          headersRow = findHeadersRow(jsonData);
+        }
+        if (headersRow === null) {
+          throw new Error('Headers not found in XLSX file.');
+        }
 
-      data.forEach((row) => {
-        const obj = {};
-        headers.forEach((header, index) => {
-          const cellValue =
-            row[index] !== undefined ? row[index].toString() : ''; // Ensure it's a string
+        const headers = jsonData[headersRow];
+        const data = jsonData.slice(headersRow + 1);
 
-          if (header === 'Description') {
-            const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/);
-            obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
-          } else if (
-            header === 'Amount' ||
-            header === 'RefNo                         Txn Amount' ||
-            header ===
-              'Value Date                        RefNo                         Txn Amount (DD/MM/YYYY)'
-          ) {
-            const creditAmount = parseFloat(
-              cellValue.replace(/[₹,Cr]/g, '').trim()
-            ); // Remove ₹, commas, and 'Cr'
-            obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
+        data.forEach((row) => {
+          const obj = {};
+          headers.forEach((header, index) => {
+            const cellValue =
+              row[index] !== undefined ? row[index].toString() : ''; // Ensure it's a string
+
+            if (header === 'Description') {
+              const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/);
+              obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
+            } else if (
+              header === 'Amount' ||
+              header === 'RefNo                         Txn Amount' ||
+              header ===
+                'Value Date                        RefNo                         Txn Amount (DD/MM/YYYY)'
+            ) {
+              const creditAmount = parseFloat(
+                cellValue.replace(/[₹,Cr]/g, '').trim()
+              ); // Remove ₹, commas, and 'Cr'
+              obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
+            }
+          });
+
+          if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
+            results.push(obj);
           }
         });
+      };
 
-        if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
-          results.push(obj);
-        }
-      });
+      // Process main sheet
+      processSheet(jsonData);
 
-      // const headers = jsonData[3]; // Assuming headers on line 4
-      // const data = jsonData.slice(4); // Assuming data starts from line 5
+      // Check if "Table2" exists and process it
+      if (workbook.SheetNames.includes('Table 2')) {
+        const table2Sheet = workbook.Sheets['Table 2'];
+        const table2Data = xlsx.utils.sheet_to_json(table2Sheet, { header: 1 });
 
-      // data.forEach((row) => {
-      //   const obj = {};
-      //   headers.forEach((header, index) => {
-      //     if (header === 'Description') {
-      //       const utrNumber = row[index] ? row[index].match(/\d{12}/) : null;
-      //       obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
-      //     } else if (header === 'Amount') {
-      //       const creditAmount = parseFloat(
-      //         row[index] ? row[index].toString().replace(/,/g, '') : NaN
-      //       );
-      //       obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
-      //     }
-      //   });
-      //   if (obj['UTR_Number'] && obj['Credit_Amount']) {
-      //     results.push(obj);
-      //   }
-      // });
+        table2Data.forEach((row, rowIndex) => {
+          if (rowIndex >= 1) {
+            // Start from row 2 (B2 & D2)
+            const cellValue = row[1] ? row[1].toString() : ''; // Column B (Index 1)
+
+            const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/); // Extract UTR Number
+
+            const obj = {
+              UTR_Number: utrNumber ? utrNumber[0] : null, // Apply regex
+              Credit_Amount: row[3]
+                ? parseFloat(
+                    row[3]
+                      .toString()
+                      .replace(/[₹,Cr]/g, '')
+                      .trim()
+                  )
+                : null, // Column D (Index 3)
+            };
+
+            if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
+              results.push(obj);
+            }
+          }
+        });
+      }
     }
 
     // console.log(results);
