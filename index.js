@@ -202,8 +202,6 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
 
-      // const results = [];
-
       // Function to process a sheet
       const processSheet = (jsonData, headersRow = null) => {
         if (headersRow === null) {
@@ -247,36 +245,38 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
       // Process main sheet
       processSheet(jsonData);
 
-      // Check if "Table2" exists and process it
-      if (workbook.SheetNames.includes('Table 2')) {
-        const table2Sheet = workbook.Sheets['Table 2'];
-        const table2Data = xlsx.utils.sheet_to_json(table2Sheet, { header: 1 });
+      // Process additional tables (Table 2, Table 3, etc.)
+      workbook.SheetNames.forEach((sheet) => {
+        if (/^Table \d+$/.test(sheet)) {
+          const tableSheet = workbook.Sheets[sheet];
+          const tableData = xlsx.utils.sheet_to_json(tableSheet, { header: 1 });
 
-        table2Data.forEach((row, rowIndex) => {
-          if (rowIndex >= 1) {
-            // Start from row 2 (B2 & D2)
-            const cellValue = row[1] ? row[1].toString() : ''; // Column B (Index 1)
+          tableData.forEach((row, rowIndex) => {
+            if (rowIndex >= 1) {
+              // Start from row 2 (B2 & D2)
+              const cellValue = row[1] ? row[1].toString() : ''; // Column B (Index 1)
 
-            const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/); // Extract UTR Number
+              const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/); // Extract UTR Number
 
-            const obj = {
-              UTR_Number: utrNumber ? utrNumber[0] : null, // Apply regex
-              Credit_Amount: row[3]
-                ? parseFloat(
-                    row[3]
-                      .toString()
-                      .replace(/[₹,Cr]/g, '')
-                      .trim()
-                  )
-                : null, // Column D (Index 3)
-            };
+              const obj = {
+                UTR_Number: utrNumber ? utrNumber[0] : null, // Apply regex
+                Credit_Amount: row[3]
+                  ? parseFloat(
+                      row[3]
+                        .toString()
+                        .replace(/[₹,Cr]/g, '')
+                        .trim()
+                    )
+                  : null, // Column D (Index 3)
+              };
 
-            if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
-              results.push(obj);
+              if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
+                results.push(obj);
+              }
             }
-          }
-        });
-      }
+          });
+        }
+      });
     }
 
     // console.log(results);
