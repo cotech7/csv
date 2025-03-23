@@ -335,6 +335,8 @@ const getRequests = async (extractedData, action) => {
       token = process.env.AFRO_TOKEN;
     } else if (action === 'aim') {
       token = process.env.AIM_TOKEN;
+    } else if (action === 'aim2') {
+      token = process.env.AIM2_TOKEN;
     } else {
       throw new Error(`Invalid action value: ${action}`);
     }
@@ -415,7 +417,7 @@ const acceptRequests = async (
   action
 ) => {
   try {
-    const rem = action === 'aim' ? 'add1' : 'fat';
+    const rem = action === 'afro' ? 'fat' : 'add1';
     const data = JSON.stringify({
       uid: user_id,
       balance: amount,
