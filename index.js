@@ -3,6 +3,7 @@ const multer = require('multer');
 const csv = require('csv-parser');
 const xls = require('xlsjs');
 const xlsx = require('xlsx');
+const pdf = require('pdf-parse');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -31,10 +32,10 @@ const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (['.csv', '.xls', '.xlsx'].includes(ext)) {
+    if (['.csv', '.xls', '.xlsx', '.pdf'].includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only CSV, XLS, and XLSX files are supported'));
+      cb(new Error('Only CSV, XLS, XLSX and PDF files are supported'));
     }
   },
 });
@@ -137,66 +138,7 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
           results.push(obj);
         }
       });
-
-      // const headers = jsonData[5]; // Assuming headers on line 6
-      // const data = jsonData.slice(6); // Assuming data starts from line 7
-
-      // data.forEach((row) => {
-      //   const obj = {};
-      //   headers.forEach((header, index) => {
-      //     if (header === 'Description') {
-      //       const utrNumber = row[index]
-      //         ? row[index].match(/\b[A-Za-z]?(\d{12})\b/)
-      //         : null;
-      //       // const utrNumber = row[index] ? row[index].match(/\d{12}/) : null;
-      //       obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
-      //     } else if (header === 'Amount (INR)' || header === 'Txn Amount') {
-      //       const creditAmount = parseFloat(
-      //         row[index] ? row[index].toString().replace(/,/g, '') : NaN
-      //       );
-      //       obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
-      //     }
-      //   });
-      //   if (obj['UTR_Number'] && obj['Credit_Amount']) {
-      //     results.push(obj);
-      //   }
-      // });
     } else if (req.file.originalname.endsWith('.xlsx')) {
-      // const workbook = xlsx.readFile(filePath);
-      // const sheetName = workbook.SheetNames[0];
-      // const worksheet = workbook.Sheets[sheetName];
-      // const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-      // const headersRow = findHeadersRow(jsonData);
-      // if (headersRow === null) {
-      //   throw new Error('Headers not found in XLSX file.');
-      // }
-      // const headers = jsonData[headersRow];
-      // const data = jsonData.slice(headersRow + 1);
-      // data.forEach((row) => {
-      //   const obj = {};
-      //   headers.forEach((header, index) => {
-      //     const cellValue =
-      //       row[index] !== undefined ? row[index].toString() : ''; // Ensure it's a string
-      //     if (header === 'Description') {
-      //       const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/);
-      //       obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
-      //     } else if (
-      //       header === 'Amount' ||
-      //       header === 'RefNo                         Txn Amount' ||
-      //       header ===
-      //         'Value Date                        RefNo                         Txn Amount (DD/MM/YYYY)'
-      //     ) {
-      //       const creditAmount = parseFloat(
-      //         cellValue.replace(/[₹,Cr]/g, '').trim()
-      //       ); // Remove ₹, commas, and 'Cr'
-      //       obj['Credit_Amount'] = isNaN(creditAmount) ? null : creditAmount;
-      //     }
-      //   });
-      //   if (obj['UTR_Number'] && obj['Credit_Amount'] !== null) {
-      //     results.push(obj);
-      //   }
-      // });
-
       const workbook = xlsx.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
@@ -277,9 +219,10 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
           });
         }
       });
+    } else if (req.file.originalname.endsWith('.pdf')) {
+      const pdfResults = await processPDF(filePath);
+      results.push(...pdfResults);
     }
-
-    // console.log(results);
 
     await getRequests(results, req.body.action);
     res.render('index', {
@@ -302,11 +245,57 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
   }
 });
 
+// Function to extract UTR Number
 function extractUTRNumber(description) {
   const utrRegex = /\b[A-Za-z]?(\d{12})\b/;
   const match = description ? description.match(utrRegex) : null;
   return match ? match[1] : null;
 }
+
+// Function to extract Credit Amount
+const extractCreditAmount = (text) => {
+  const match = text.match(/₹?([\d,]+\.\d{2})\s*Cr?/);
+  return match ? parseFloat(match[1].replace(/,/g, '')) : null;
+};
+
+const processPDF = async (filePath) => {
+  const dataBuffer = fs.readFileSync(filePath);
+  const pdfData = await pdf(dataBuffer);
+  const lines = pdfData.text.split('\n').map((line) => line.trim());
+
+  const results = [];
+  let utrNumber = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Extract UTR Number (assuming it's on line 1)
+    const extractedUTR = extractUTRNumber(line);
+
+    if (extractedUTR) {
+      utrNumber = extractedUTR;
+    }
+
+    // Extract Credit Amount (assuming it's on line 3 after UTR)
+    if (utrNumber && i + 2 < lines.length) {
+      const nextLine = lines[i + 2]; // Get the line 3 steps below
+      const amountMatch = nextLine.match(/₹?([\d,]+\.\d{2})\s*Cr?/);
+
+      if (amountMatch) {
+        const creditAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
+
+        results.push({
+          UTR_Number: utrNumber,
+          Credit_Amount: creditAmount,
+        });
+
+        utrNumber = null; // Reset UTR to find next one
+      }
+    }
+  }
+
+  return results;
+};
 
 function findHeadersRow(data) {
   for (let i = 0; i < data.length; i++) {
