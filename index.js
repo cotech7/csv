@@ -258,38 +258,124 @@ const extractCreditAmount = (text) => {
   return match ? parseFloat(match[1].replace(/,/g, '')) : null;
 };
 
+// const processPDF = async (filePath) => {
+//   const dataBuffer = fs.readFileSync(filePath);
+//   const pdfData = await pdf(dataBuffer);
+//   const lines = pdfData.text.split('\n').map((line) => line.trim());
+
+//   const results = [];
+//   let utrNumber = null;
+
+//   for (let i = 0; i < lines.length; i++) {
+//     const line = lines[i];
+
+//     // Extract UTR Number (assuming it's on line 1)
+//     const extractedUTR = extractUTRNumber(line);
+
+//     if (extractedUTR) {
+//       utrNumber = extractedUTR;
+//     }
+
+//     // Extract Credit Amount (assuming it's on line 3 after UTR)
+//     if (utrNumber && i + 2 < lines.length) {
+//       const nextLine = lines[i + 2]; // Get the line 3 steps below
+//       const amountMatch = nextLine.match(/₹?([\d,]+\.\d{2})\s*Cr?/);
+
+//       if (amountMatch) {
+//         const creditAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
+
+//         results.push({
+//           UTR_Number: utrNumber,
+//           Credit_Amount: creditAmount,
+//         });
+
+//         utrNumber = null; // Reset UTR to find next one
+//       }
+//     }
+//   }
+
+//   return results;
+// };
+
 const processPDF = async (filePath) => {
   const dataBuffer = fs.readFileSync(filePath);
   const pdfData = await pdf(dataBuffer);
   const lines = pdfData.text.split('\n').map((line) => line.trim());
 
   const results = [];
-  let utrNumber = null;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  const headerIndex = lines.findIndex((line) =>
+    /date.*particular.*deposit/i.test(line.replace(/\s+/g, '').toLowerCase())
+  );
 
-    // Extract UTR Number (assuming it's on line 1)
-    const extractedUTR = extractUTRNumber(line);
+  if (headerIndex !== -1) {
+    // Type B (table format with fixed-width columns)
+    for (let i = 0; i < lines.length - 2; i++) {
+      const line1 = lines[i];
+      const line2 = lines[i + 1];
+      const line3 = lines[i + 2];
 
-    if (extractedUTR) {
-      utrNumber = extractedUTR;
+      const fullText = `${line1} ${line2}`;
+      const utrNumber = extractUTRNumber(fullText);
+
+      if (utrNumber) {
+        const numberMatch = line3.match(/(\d+\.\d{2})/g); // grab all decimal numbers
+
+        if (numberMatch && numberMatch.length > 0) {
+          const combined = numberMatch[0]; // first amount chunk e.g. 0726123500.00
+
+          // Remove commas just in case
+          const cleanCombined = combined.replace(/,/g, '');
+
+          // Now split: we’ll try removing 6 or 7 digits and test both
+          let creditAmount = null;
+
+          // Try 7-digit removal
+          const part7 = cleanCombined.slice(7);
+          if (parseFloat(part7) !== 0) {
+            creditAmount = parseFloat(part7);
+          } else {
+            // Fallback: Try 6-digit removal
+            const part6 = cleanCombined.slice(6);
+            creditAmount = parseFloat(part6);
+          }
+
+          results.push({
+            UTR_Number: utrNumber,
+            Credit_Amount: creditAmount,
+          });
+
+          i += 2;
+        }
+      }
     }
+  } else {
+    // Type A fallback (unstructured format)
+    let utrNumber = null;
 
-    // Extract Credit Amount (assuming it's on line 3 after UTR)
-    if (utrNumber && i + 2 < lines.length) {
-      const nextLine = lines[i + 2]; // Get the line 3 steps below
-      const amountMatch = nextLine.match(/₹?([\d,]+\.\d{2})\s*Cr?/);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
 
-      if (amountMatch) {
-        const creditAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
+      const extractedUTR = extractUTRNumber(line);
 
-        results.push({
-          UTR_Number: utrNumber,
-          Credit_Amount: creditAmount,
-        });
+      if (extractedUTR) {
+        utrNumber = extractedUTR;
+      }
+      // Extract Credit Amount (assuming it's on line 3 after UTR)
+      if (utrNumber && i + 2 < lines.length) {
+        const nextLine = lines[i + 2]; // Get the line 3 steps below
+        const amountMatch = nextLine.match(/₹?([\d,]+\.\d{2})\s*Cr?/);
 
-        utrNumber = null; // Reset UTR to find next one
+        if (amountMatch) {
+          const creditAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
+
+          results.push({
+            UTR_Number: utrNumber,
+            Credit_Amount: creditAmount,
+          });
+
+          utrNumber = null; // Reset UTR to find next one
+        }
       }
     }
   }
