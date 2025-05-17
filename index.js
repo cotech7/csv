@@ -126,7 +126,11 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
           if (header === 'Description') {
             const utrNumber = cellValue.match(/\b[A-Za-z]?(\d{12})\b/);
             obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
-          } else if (header === 'Amount (INR)' || header === 'Txn Amount') {
+          } else if (
+            header === 'Amount (INR)' ||
+            header === 'Txn Amount' ||
+            header === 'Credit Amount'
+          ) {
             const creditAmount = parseFloat(
               cellValue.replace(/[₹,Cr]/g, '').trim()
             ); // Remove ₹, commas, and 'Cr'
@@ -392,6 +396,7 @@ function findHeadersRow(data) {
       (row.includes('Description') && row.includes('Txn Amount')) ||
       (row.includes('Description') && row.includes('Amount')) ||
       (row.includes('Description') && row.includes('Deposits (Cr)')) ||
+      (row.includes('Description') && row.includes('Credit Amount')) ||
       (row.includes('Description') &&
         row.includes('RefNo                         Txn Amount')) ||
       (row.includes('Description') &&
