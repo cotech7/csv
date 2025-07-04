@@ -171,6 +171,7 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
               obj['UTR_Number'] = utrNumber ? utrNumber[0] : null;
             } else if (
               header === 'Amount' ||
+              header === 'Amount (INR)' ||
               header === 'Deposits (Cr)' ||
               header === 'RefNo                         Txn Amount' ||
               header ===
@@ -397,6 +398,7 @@ function findHeadersRow(data) {
       (row.includes('Description') && row.includes('Amount')) ||
       (row.includes('Description') && row.includes('Deposits (Cr)')) ||
       (row.includes('Description') && row.includes('Credit Amount')) ||
+      (row.includes('Particulars') && row.includes('Deposits')) ||
       (row.includes('Description') &&
         row.includes('RefNo                         Txn Amount')) ||
       (row.includes('Description') &&
